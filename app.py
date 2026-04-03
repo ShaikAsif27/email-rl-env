@@ -31,12 +31,12 @@ def home():
 @app.post("/reset")
 def reset_post():
     obs = env.reset()
-    return {"observation": obs}
+    return obs["observation"] if "observation" in obs else obs
 
 @app.get("/reset")
 def reset_get():
     obs = env.reset()
-    return {"observation": obs}
+    return obs["observation"] if "observation" in obs else obs
 
 
 # -----------------------------
