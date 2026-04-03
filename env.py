@@ -1,4 +1,4 @@
-from tasks import get_task_emails
+import random
 
 class EmailEnv:
     def __init__(self):
@@ -6,72 +6,78 @@ class EmailEnv:
         self.reset()
 
     def reset(self):
-        self.inbox = get_task_emails(self.level)
-        self.index = 0
+        self.processed = 0
         self.mistakes = 0
-        self.total_reward = 0
         self.history = []
-        return self._obs()
 
-    def _obs(self):
-        if self.index >= len(self.inbox):
-            return None
-        e = self.inbox[self.index]
+        self.current_email = self._generate_email()
+
+        return self._get_obs()
+
+    def _generate_email(self):
+        samples = [
+            {"text": "URGENT: Server is down!", "type": "priority"},
+            {"text": "Customer complaint: refund needed", "type": "support"},
+            {"text": "50% discount sale!!! click now", "type": "spam"},
+            {"text": "Meeting at 5 PM", "type": "normal"},
+            {"text": "Invoice issue, please check", "type": "support"},
+        ]
+        return random.choice(samples)
+
+    def _get_obs(self):
         return {
-            "email": e["text"],
-            "sender": e["sender"],
-            "processed": self.index,
+            "email": self.current_email["text"],
+            "processed": self.processed,
             "mistakes": self.mistakes,
-            "history": self.history[-2:]
+            "history": self.history
         }
 
     def step(self, action):
-        e = self.inbox[self.index]
-        expected = e["label"]
-        reward = 0.0
+        action_type = action.get("action", "")
+        email_type = self.current_email["type"]
 
-        # decision logic
-        if action["action"] == "ignore" and expected == "spam":
-            reward += 0.6
-        elif action["action"] == "reply" and expected in ["important","social"]:
-            reward += 0.6
-        elif action["action"] == "archive" and expected == "promotion":
-            reward += 0.5
-        elif action["action"] == "escalate" and expected == "important":
-            reward += 0.7
+        correct = False
+
+        # --- Decision logic ---
+        if email_type == "priority" and action_type == "escalate":
+            correct = True
+        elif email_type == "support" and action_type == "reply":
+            correct = True
+        elif email_type == "spam" and action_type == "ignore":
+            correct = True
+        elif email_type == "normal" and action_type == "archive":
+            correct = True
+
+        # --- Reward ---
+        if correct:
+            reward = 1.0
         else:
-            reward -= 0.4
+            reward = -0.5
             self.mistakes += 1
 
-        # response quality
-        if len(action.get("response","").split()) > 5:
-            reward += 0.2
-
-        # trajectory penalty
-        if self.mistakes >= 2:
-            reward -= 0.2
-
-        self.total_reward += reward
+        self.processed += 1
 
         self.history.append({
-            "email": e["text"],
-            "action": action["action"],
-            "reward": round(reward,2)
+            "email": self.current_email["text"],
+            "action": action_type,
+            "correct": correct
         })
 
-        self.index += 1
-        done = self.index >= len(self.inbox)
+        done = self.processed >= 3
+
+        self.current_email = self._generate_email()
 
         return {
-            "observation": self._obs(),
-            "reward": round(reward,2),
+            "observation": self._get_obs(),
+            "reward": reward,
             "done": done,
-            "info": {"expected": expected}
+            "info": {"expected": email_type}
         }
 
-    def state(self):
+    def get_state(self):
         return {
-            "processed": self.index,
+            "processed": self.processed,
             "mistakes": self.mistakes,
-            "total_reward": round(self.total_reward,2)
+            "current_email": self.current_email["text"],
+            "history": self.history
         }
