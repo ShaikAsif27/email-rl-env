@@ -36,7 +36,7 @@ def reset_post():
 @app.get("/reset")
 def reset_get():
     obs = env.reset()
-    return obs["observation"] if "observation" in obs else obs
+    return obs["observation"] if "observation" in obs else obss
 
 
 # -----------------------------
