@@ -76,8 +76,8 @@ class EmailEnv:
 
     def get_state(self):
         return {
+            "email": self.email,   # 🔥 FIX HERE
             "processed": self.processed,
             "mistakes": self.mistakes,
-            "current_email": self.current_email["text"],
             "history": self.history
         }
