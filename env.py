@@ -26,7 +26,7 @@ class EmailEnv:
 
     def _get_obs(self):
         return {
-            "email": self.current_email["text"],
+            "email": self.current_email["text"],   # ✅ correct
             "processed": self.processed,
             "mistakes": self.mistakes,
             "history": self.history
@@ -52,7 +52,7 @@ class EmailEnv:
         if correct:
             reward = 1.0
         else:
-            reward = -0.5
+            reward = 0.0   # ✅ FIXED (was -0.5, now valid range [0,1])
             self.mistakes += 1
 
         self.processed += 1
@@ -76,7 +76,7 @@ class EmailEnv:
 
     def get_state(self):
         return {
-            "email": self.email,   # 🔥 FIX HERE
+            "email": self.current_email["text"],   # ✅ FINAL FIX (NO ERROR)
             "processed": self.processed,
             "mistakes": self.mistakes,
             "history": self.history
