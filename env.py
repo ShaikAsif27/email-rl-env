@@ -14,19 +14,32 @@ class EmailEnv:
 
         return self._get_obs()
 
+    # ✅ TASK DIFFERENTIATION (CRITICAL FIX)
     def _generate_email(self):
-        samples = [
-            {"text": "URGENT: Server is down!", "type": "priority"},
-            {"text": "Customer complaint: refund needed", "type": "support"},
-            {"text": "50% discount sale!!! click now", "type": "spam"},
-            {"text": "Meeting at 5 PM", "type": "normal"},
-            {"text": "Invoice issue, please check", "type": "support"},
-        ]
+        if self.level == "easy":
+            samples = [
+                {"text": "Meeting at 5 PM", "type": "normal"},
+                {"text": "Invoice issue, please check", "type": "support"},
+            ]
+
+        elif self.level == "medium":
+            samples = [
+                {"text": "Customer complaint: refund needed", "type": "support"},
+                {"text": "URGENT: Server is down!", "type": "priority"},
+            ]
+
+        else:  # hard
+            samples = [
+                {"text": "50% discount sale!!! click now", "type": "spam"},
+                {"text": "URGENT: Server is down!", "type": "priority"},
+                {"text": "Customer complaint: refund needed", "type": "support"},
+            ]
+
         return random.choice(samples)
 
     def _get_obs(self):
         return {
-            "email": self.current_email["text"],   # ✅ correct
+            "email": self.current_email["text"],
             "processed": self.processed,
             "mistakes": self.mistakes,
             "history": self.history
@@ -48,11 +61,11 @@ class EmailEnv:
         elif email_type == "normal" and action_type == "archive":
             correct = True
 
-        # --- Reward ---
+        # ✅ REWARD FIX (STRICT RANGE)
         if correct:
-            reward = 1.0
+            reward = 0.9   # ✅ < 1
         else:
-            reward = 0.0   # ✅ FIXED (was -0.5, now valid range [0,1])
+            reward = 0.1   # ✅ > 0
             self.mistakes += 1
 
         self.processed += 1
@@ -76,7 +89,7 @@ class EmailEnv:
 
     def get_state(self):
         return {
-            "email": self.current_email["text"],   # ✅ FINAL FIX (NO ERROR)
+            "email": self.current_email["text"],
             "processed": self.processed,
             "mistakes": self.mistakes,
             "history": self.history
