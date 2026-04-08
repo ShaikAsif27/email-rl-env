@@ -82,7 +82,12 @@ def baseline():
 def grader(action: Action):
     import os
 
-    task = os.getenv("TASK_NAME", "easy")
+    # ✅ Try validator task first
+    task = os.getenv("TASK_NAME")
+
+    # ✅ Fallback to env level (VERY IMPORTANT)
+    if task not in ["easy", "medium", "hard"]:
+        task = env.level
 
     obs = env.get_state()
     email_text = obs["email"].lower()
@@ -100,7 +105,7 @@ def grader(action: Action):
     elif "meeting" in email_text and action_type == "archive":
         correct = True
 
-    # ✅ TASK-AWARE SCORING (CRITICAL)
+    # ✅ Task-based scoring
     if correct:
         if task == "easy":
             score = 0.8
