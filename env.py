@@ -1,15 +1,16 @@
 import random
-import os 
+
 class EmailEnv:
     def __init__(self):
-        self.tasks = ["easy", "medium", "hard"]   # ✅ define tasks
-        self.task_index = 0                      # ✅ pointer
-        self.level = self.tasks[self.task_index]
+        # ✅ Define tasks
+        self.tasks = ["easy", "medium", "hard"]
+        self.level = "easy"
         self.reset()
 
     def reset(self):
-        self.level = self.tasks[self.task_index]
-        self.task_index = (self.task_index + 1) % len(self.tasks)
+        # ✅ RANDOM TASK SELECTION (validator-safe)
+        self.level = random.choice(self.tasks)
+
         self.processed = 0
         self.mistakes = 0
         self.history = []
@@ -18,7 +19,7 @@ class EmailEnv:
 
         return self._get_obs()
 
-    # ✅ TASK DIFFERENTIATION (CRITICAL FIX)
+    # ✅ TASK DIFFERENTIATION
     def _generate_email(self):
         if self.level == "easy":
             samples = [
@@ -55,7 +56,7 @@ class EmailEnv:
 
         correct = False
 
-        # --- Decision logic ---
+        # ✅ Decision logic
         if email_type == "priority" and action_type == "escalate":
             correct = True
         elif email_type == "support" and action_type == "reply":
@@ -65,7 +66,7 @@ class EmailEnv:
         elif email_type == "normal" and action_type == "archive":
             correct = True
 
-        # ✅ REWARD FIX (STRICT RANGE)
+        # ✅ REWARD (STRICTLY BETWEEN 0 AND 1 + TASK VARIATION)
         if correct:
             if self.level == "easy":
                 reward = 0.8
@@ -76,6 +77,7 @@ class EmailEnv:
         else:
             reward = 0.2
             self.mistakes += 1
+
         self.processed += 1
 
         self.history.append({
