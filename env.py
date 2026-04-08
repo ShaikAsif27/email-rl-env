@@ -2,10 +2,14 @@ import random
 import os 
 class EmailEnv:
     def __init__(self):
-        self.level = os.getenv("TASK_NAME", "easy")  
+        self.tasks = ["easy", "medium", "hard"]   # ✅ define tasks
+        self.task_index = 0                      # ✅ pointer
+        self.level = self.tasks[self.task_index]
         self.reset()
 
     def reset(self):
+        self.level = self.tasks[self.task_index]
+        self.task_index = (self.task_index + 1) % len(self.tasks)
         self.processed = 0
         self.mistakes = 0
         self.history = []
