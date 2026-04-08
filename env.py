@@ -1,8 +1,8 @@
 import random
-
+import os 
 class EmailEnv:
     def __init__(self):
-        self.level = "easy"
+        self.level = os.getenv("TASK_NAME", "easy")  
         self.reset()
 
     def reset(self):
@@ -63,11 +63,15 @@ class EmailEnv:
 
         # ✅ REWARD FIX (STRICT RANGE)
         if correct:
-            reward = 0.9   # ✅ < 1
+            if self.level == "easy":
+                reward = 0.8
+            elif self.level == "medium":
+                reward = 0.85
+            else:
+                reward = 0.9
         else:
-            reward = 0.1   # ✅ > 0
+            reward = 0.2
             self.mistakes += 1
-
         self.processed += 1
 
         self.history.append({
