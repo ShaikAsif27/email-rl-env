@@ -6,7 +6,7 @@ class EmailEnv:
         self.tasks = ["easy", "medium", "hard"]
 
         # ✅ Read task from validator (if provided)
-        self.level = os.getenv("TASK_NAME")
+        self.level = os.getenv("OPENENV_TASK")
 
         # fallback if not provided
         if self.level not in self.tasks:
@@ -15,7 +15,7 @@ class EmailEnv:
         self.reset()
 
     def reset(self):
-        task = os.getenv("TASK_NAME")
+        task = os.getenv("OPENENV_TASK")
 
         if task in self.tasks:
             self.level = task
