@@ -1,15 +1,26 @@
+import os
 import random
 
 class EmailEnv:
     def __init__(self):
-        # ✅ Define tasks
         self.tasks = ["easy", "medium", "hard"]
-        self.level = "easy"
+
+        # ✅ Read task from validator (if provided)
+        self.level = os.getenv("TASK_NAME")
+
+        # fallback if not provided
+        if self.level not in self.tasks:
+            self.level = random.choice(self.tasks)
+
         self.reset()
 
     def reset(self):
-        # ✅ RANDOM TASK SELECTION (validator-safe)
-        self.level = random.choice(self.tasks)
+        task = os.getenv("TASK_NAME")
+
+        if task in self.tasks:
+            self.level = task
+        else:
+            self.level = random.choice(self.tasks)
 
         self.processed = 0
         self.mistakes = 0
@@ -51,6 +62,15 @@ class EmailEnv:
         }
 
     def step(self, action):
+        # 🔥 CRITICAL FIX: STOP after episode ends
+        if self.processed >= 3:
+            return {
+                "observation": self._get_obs(),
+                "reward": 0.2,
+                "done": True,
+                "info": {"message": "Episode already finished"}
+            }
+
         action_type = action.get("action", "")
         email_type = self.current_email["type"]
 
@@ -66,7 +86,7 @@ class EmailEnv:
         elif email_type == "normal" and action_type == "archive":
             correct = True
 
-        # ✅ REWARD (STRICTLY BETWEEN 0 AND 1 + TASK VARIATION)
+        # ✅ Reward strictly in (0,1)
         if correct:
             if self.level == "easy":
                 reward = 0.8

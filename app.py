@@ -80,15 +80,38 @@ def baseline():
 # -----------------------------
 @app.post("/grader")
 def grader(action: Action):
-    result = env.step({
-        "action": action.action,
-        "response": action.response
-    })
+    # ✅ DO NOT change environment state
 
-    score = result.get("reward", 0.0)
+    obs = env.get_state()
+    email_text = obs["email"].lower()
+
+    action_type = action.action
+
+    correct = False
+
+    # ✅ Match environment logic (stateless)
+    if "urgent" in email_text and action_type == "escalate":
+        correct = True
+    elif "complaint" in email_text and action_type == "reply":
+        correct = True
+    elif "discount" in email_text and action_type == "ignore":
+        correct = True
+    elif "meeting" in email_text and action_type == "archive":
+        correct = True
+
+    # ✅ Reward strictly between (0,1)
+    if correct:
+        if env.level == "easy":
+            score = 0.8
+        elif env.level == "medium":
+            score = 0.85
+        else:
+            score = 0.9
+    else:
+        score = 0.2
 
     return {
         "score": float(score),
-        "done": result.get("done", False),
-        "info": result.get("info", {})
+        "done": False,   # ✅ IMPORTANT
+        "info": {"checked": True}
     }
