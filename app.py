@@ -80,7 +80,9 @@ def baseline():
 # -----------------------------
 @app.post("/grader")
 def grader(action: Action):
-    # ✅ DO NOT change environment state
+    import os
+
+    task = os.getenv("TASK_NAME", "easy")
 
     obs = env.get_state()
     email_text = obs["email"].lower()
@@ -89,7 +91,6 @@ def grader(action: Action):
 
     correct = False
 
-    # ✅ Match environment logic (stateless)
     if "urgent" in email_text and action_type == "escalate":
         correct = True
     elif "complaint" in email_text and action_type == "reply":
@@ -99,11 +100,11 @@ def grader(action: Action):
     elif "meeting" in email_text and action_type == "archive":
         correct = True
 
-    # ✅ Reward strictly between (0,1)
+    # ✅ TASK-AWARE SCORING (CRITICAL)
     if correct:
-        if env.level == "easy":
+        if task == "easy":
             score = 0.8
-        elif env.level == "medium":
+        elif task == "medium":
             score = 0.85
         else:
             score = 0.9
@@ -112,6 +113,9 @@ def grader(action: Action):
 
     return {
         "score": float(score),
-        "done": False,   # ✅ IMPORTANT
-        "info": {"checked": True}
+        "done": False,
+        "info": {
+            "task": task,
+            "correct": correct
+        }
     }
