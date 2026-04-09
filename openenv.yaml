@@ -1,6 +1,6 @@
 name: email-inbox-rl
 
-reward_range: [0.1, 0.9]
+reward_range: [0.1, 0.95]
 
 endpoints:
   reset: /reset
@@ -8,11 +8,11 @@ endpoints:
   state: /state
 
 tasks:
-  - name: easy
+  - id: easy
     grader: /grader
 
-  - name: medium
+  - id: medium
     grader: /grader
 
-  - name: hard
+  - id: hard
     grader: /grader
