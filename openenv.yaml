@@ -9,10 +9,13 @@ endpoints:
 
 tasks:
   - id: easy
+    name: easy
     grader: /grader
 
   - id: medium
+    name: medium
     grader: /grader
 
   - id: hard
+    name: hard
     grader: /grader
