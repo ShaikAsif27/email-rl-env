@@ -77,44 +77,41 @@ def baseline():
 
 @app.post("/grader")
 def grader(action: Action):
-    obs = env.get_state()
-
-    email_text = obs["email"].lower()
-    response_text = action.response.lower()
-    action_type = action.action
-
-    combined_text = email_text + " " + response_text
+    text = (action.response or "").lower().strip()
+    action_type = (action.action or "").lower().strip()
 
     correct = False
     task = "easy"
 
-    # ✅ Detect task using BOTH email + response
-    if "urgent" in combined_text:
-        task = "medium"
-        if action_type == "escalate":
-            correct = True
-
-    elif "complaint" in combined_text:
-        task = "medium"
-        if action_type == "reply":
-            correct = True
-
-    elif "discount" in combined_text:
+    # ✅ HARD (check first to avoid overlap)
+    if "discount" in text or "sale" in text:
         task = "hard"
         if action_type == "ignore":
             correct = True
 
-    elif "meeting" in combined_text:
+    # ✅ MEDIUM
+    elif "complaint" in text or "refund" in text:
+        task = "medium"
+        if action_type == "reply":
+            correct = True
+
+    elif "urgent" in text:
+        task = "medium"
+        if action_type == "escalate":
+            correct = True
+
+    # ✅ EASY
+    elif "meeting" in text:
         task = "easy"
         if action_type == "archive":
             correct = True
 
-    elif "invoice" in combined_text:
+    elif "invoice" in text:
         task = "easy"
         if action_type == "reply":
             correct = True
 
-    # ✅ scoring
+    # ✅ STRICT scoring
     if correct:
         if task == "easy":
             score = 0.8
