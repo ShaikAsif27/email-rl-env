@@ -80,30 +80,40 @@ def baseline():
 # -----------------------------
 @app.post("/grader")
 def grader(action: Action):
-    import os
-
-    # task from validator
-    task = os.getenv("TASK_NAME")
-    if task not in ["easy", "medium", "hard"]:
-        task = "easy"
-
-    # ❌ DO NOT use env.get_state()
-    # ❌ DO NOT depend on env internal state
-
-    email_text = action.response.lower()  # simulate input
+    obs = env.get_state()
+    email_text = obs["email"].lower()
     action_type = action.action
 
     correct = False
+    task = "easy"  # default
 
-    if "urgent" in email_text and action_type == "escalate":
-        correct = True
-    elif "complaint" in email_text and action_type == "reply":
-        correct = True
-    elif "discount" in email_text and action_type == "ignore":
-        correct = True
-    elif "meeting" in email_text and action_type == "archive":
-        correct = True
+    # ✅ Detect task + correctness
+    if "urgent" in email_text:
+        task = "medium"
+        if action_type == "escalate":
+            correct = True
 
+    elif "complaint" in email_text:
+        task = "medium"
+        if action_type == "reply":
+            correct = True
+
+    elif "discount" in email_text:
+        task = "hard"
+        if action_type == "ignore":
+            correct = True
+
+    elif "meeting" in email_text:
+        task = "easy"
+        if action_type == "archive":
+            correct = True
+
+    elif "invoice" in email_text:
+        task = "easy"
+        if action_type == "reply":
+            correct = True
+
+    # ✅ STRICT scoring
     if correct:
         if task == "easy":
             score = 0.8
