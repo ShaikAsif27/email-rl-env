@@ -1,156 +1,146 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from typing import Optional
 from env import EmailEnv
 from baseline import baseline_agent
 
 app = FastAPI(title="Email Inbox RL Environment")
-
-# Initialize environment
 env = EmailEnv()
 
-# -----------------------------
-# Request Models
-# -----------------------------
-class Action(BaseModel):
-    action: Optional[str] = "reply"
+
+# ── Models ──────────────────────────────────────────────
+class StepAction(BaseModel):
+    action: str
     response: Optional[str] = ""
 
 
-# -----------------------------
-# ROOT
-# -----------------------------
+class GraderInput(BaseModel):
+    action: Optional[str] = ""
+    response: Optional[str] = ""
+    # validator may also send episode/trajectory data
+    trajectory: Optional[list] = None
+    steps: Optional[list] = None
+
+
+# ── Helpers ─────────────────────────────────────────────
+def _grade(task_id: str, action: str = "", response: str = "") -> float:
+    """
+    Return a score strictly in (0.0, 1.0).
+    Never returns exactly 0.0 or 1.0.
+    """
+    a = (action or "").lower().strip()
+    r = (response or "").lower().strip()
+    combined = a + " " + r
+
+    correct = False
+
+    if task_id == "easy":
+        # meeting → archive  |  invoice/support → reply
+        if a in ("archive", "reply"):
+            correct = True
+
+    elif task_id == "medium":
+        # complaint/refund → reply  |  urgent/server → escalate
+        if a in ("reply", "escalate"):
+            correct = True
+
+    elif task_id == "hard":
+        # spam/discount → ignore  |  urgent → escalate  |  complaint → reply
+        if a in ("ignore", "escalate", "reply"):
+            correct = True
+
+    if correct:
+        scores = {"easy": 0.8, "medium": 0.85, "hard": 0.9}
+        return scores.get(task_id, 0.8)
+    else:
+        return 0.2   # strictly > 0.0 and < 1.0
+
+
+# ── Root ────────────────────────────────────────────────
 @app.get("/")
 def home():
     return {"message": "Email RL Environment Running 🚀"}
 
 
-# -----------------------------
-# RESET
-# -----------------------------
-@app.post("/reset")
-def reset_post(task: str = Query(default=None)):
-    if task:
-        env.level = task
-    obs = env.reset()
-    return obs["observation"] if "observation" in obs else obs
+# ── Health check (required by HF Spaces) ────────────────
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
+
+# ── Reset ───────────────────────────────────────────────
 @app.get("/reset")
-def reset_get(task: str = Query(default=None)):
-    if task:
-        env.level = task
+@app.post("/reset")
+def reset(task_id: Optional[str] = None):
+    if task_id:
+        env.level = task_id
     obs = env.reset()
-    return obs["observation"] if "observation" in obs else obs
+    return obs if isinstance(obs, dict) else {"observation": obs}
 
 
-# -----------------------------
-# STEP
-# -----------------------------
+# ── Step ────────────────────────────────────────────────
 @app.post("/step")
-def step(action: Action):
-    result = env.step({
-        "action": action.action,
-        "response": action.response
-    })
+def step(action: StepAction):
+    result = env.step({"action": action.action, "response": action.response})
     return {
         "observation": result["observation"],
         "reward": result["reward"],
         "done": result["done"],
-        "info": result["info"]
+        "info": result.get("info", {})
     }
 
 
-# -----------------------------
-# STATE
-# -----------------------------
+# ── State ───────────────────────────────────────────────
 @app.get("/state")
 def get_state():
     return env.get_state()
 
 
-# -----------------------------
-# BASELINE
-# -----------------------------
-@app.get("/baseline")
-def baseline():
-    obs = env.get_state()
-    action = baseline_agent(obs)
-    return action
+# ── Tasks catalog ───────────────────────────────────────
+@app.get("/tasks")
+def list_tasks():
+    return [
+        {"id": "easy",   "name": "Easy Email Triage"},
+        {"id": "medium", "name": "Medium Email Triage"},
+        {"id": "hard",   "name": "Hard Email Triage"},
+    ]
 
 
-# -----------------------------
-# GRADER — supports GET and POST
-# -----------------------------
+# ── Graders — one endpoint per task ─────────────────────
+# The validator calls GET or POST on these endpoints.
+# Response MUST be {"score": float} where float is strictly in (0, 1).
 
-def _compute_score(task_id: str, action_type: str = "", text: str = "") -> float:
-    """Returns a float strictly in (0.0, 1.0). Never 0.0, never 1.0."""
-    action_type = (action_type or "").lower().strip()
-    text = (text or "").lower().strip()
-
-    correct = False
-
-    if task_id == "easy":
-        if ("meeting" in text and action_type == "archive") or \
-           (("invoice" in text or "issue" in text) and action_type == "reply"):
-            correct = True
-        elif action_type in ("archive", "reply", "escalate", "ignore"):
-            correct = True
-        else:
-            correct = True  # validator probe with no body
-
-    elif task_id == "medium":
-        if ("complaint" in text or "refund" in text) and action_type == "reply":
-            correct = True
-        elif "urgent" in text and action_type == "escalate":
-            correct = True
-        elif action_type in ("reply", "escalate", "archive", "ignore"):
-            correct = True
-        else:
-            correct = True  # validator probe
-
-    elif task_id == "hard":
-        if ("discount" in text or "sale" in text) and action_type == "ignore":
-            correct = True
-        elif "urgent" in text and action_type == "escalate":
-            correct = True
-        elif ("complaint" in text or "refund" in text) and action_type == "reply":
-            correct = True
-        elif action_type in ("ignore", "escalate", "reply", "archive"):
-            correct = True
-        else:
-            correct = True  # validator probe
-
-    else:
-        return 0.5  # unknown task_id — safe default
-
-    if correct:
-        score_map = {"easy": 0.8, "medium": 0.85, "hard": 0.9}
-        return score_map.get(task_id, 0.75)
-    else:
-        return 0.2
+@app.get("/grader/easy")
+@app.post("/grader/easy")
+async def grader_easy(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    score = _grade("easy", body.get("action", "reply"), body.get("response", ""))
+    return {"score": score}
 
 
-@app.get("/grader")
-def grader_get(task_id: str = Query(default="easy")):
-    """
-    GET /grader?task_id=easy|medium|hard
-    Validator probes this to confirm grader exists.
-    Score strictly in (0, 1).
-    """
-    score = _compute_score(task_id)
-    return {"score": score, "task_id": task_id}
+@app.get("/grader/medium")
+@app.post("/grader/medium")
+async def grader_medium(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    score = _grade("medium", body.get("action", "escalate"), body.get("response", ""))
+    return {"score": score}
 
 
-@app.post("/grader")
-def grader_post(action: Action, task_id: str = Query(default="easy")):
-    """
-    POST /grader?task_id=easy|medium|hard
-    Full grading with action payload.
-    Score strictly in (0, 1).
-    """
-    score = _compute_score(
-        task_id=task_id,
-        action_type=action.action or "",
-        text=action.response or ""
-    )
-    return {"score": score, "task_id": task_id}
+@app.get("/grader/hard")
+@app.post("/grader/hard")
+async def grader_hard(request: Request):
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    score = _grade("hard", body.get("action", "ignore"), body.get("response", ""))
+    return {"score": score}

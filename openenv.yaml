@@ -9,13 +9,13 @@ endpoints:
 
 tasks:
   - id: easy
-    name: easy
-    grader: /grader?task_id=easy
+    name: Easy Email Triage
+    grader: /grader/easy
 
   - id: medium
-    name: medium
-    grader: /grader?task_id=medium
+    name: Medium Email Triage
+    grader: /grader/medium
 
   - id: hard
-    name: hard
-    grader: /grader?task_id=hard
+    name: Hard Email Triage
+    grader: /grader/hard
