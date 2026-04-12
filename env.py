@@ -10,15 +10,18 @@ class EmailEnv:
         "easy": [
             {"text": "Meeting at 5 PM tomorrow", "correct": "archive"},
             {"text": "Invoice issue, please check payment", "correct": "reply"},
+            {"text": "Project discussion scheduled", "correct": "archive"},
         ],
         "medium": [
             {"text": "Customer complaint: refund needed urgently", "correct": "reply"},
             {"text": "URGENT: Server is down! Fix immediately", "correct": "escalate"},
+            {"text": "Client issue: product not working", "correct": "reply"},
         ],
         "hard": [
             {"text": "50% discount sale!!! Click now to buy", "correct": "ignore"},
             {"text": "URGENT: Critical security breach detected", "correct": "escalate"},
             {"text": "Customer complaint: wrong product delivered, refund needed", "correct": "reply"},
+            {"text": "Limited time offer! Free coupons inside", "correct": "ignore"},
         ],
     }
 
@@ -62,11 +65,23 @@ class EmailEnv:
         action_type = (action.get("action") or "").lower().strip()
         correct = (action_type == self.current_email["correct"])
 
+        email = self.current_email["text"].lower()
         if correct:
             reward = self.CORRECT_REWARD[self.level]
+            if "urgent" in email and action_type == "escalate":
+                reward += 0.05
+            if "complaint" in email and action_type == "reply":
+                reward += 0.05
         else:
             reward = self.WRONG_REWARD
             self.mistakes += 1
+            # Penalty for bad critical decisions
+            if "urgent" in email and action_type == "ignore":
+                reward -= 0.1
+        
+        # Clamp reward STRICTLY (VERY IMPORTANT)
+        reward = max(0.01, min(0.99, reward))
+
 
         self.history.append({
             "email": self.current_email["text"],
