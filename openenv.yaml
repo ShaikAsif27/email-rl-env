@@ -1,6 +1,6 @@
 name: email-inbox-rl
 
-reward_range: [0.1, 0.95]
+reward_range: [0.0, 1.0]
 
 endpoints:
   reset: /reset
