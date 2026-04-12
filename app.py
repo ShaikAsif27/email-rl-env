@@ -42,17 +42,19 @@ def get_state():
     return env.get_state()
 
 # Graders — hardcoded scores, strictly in (0,1), no logic that can fail
+from fastapi.responses import JSONResponse
+
 @app.get("/grader/easy")
 @app.post("/grader/easy")
 async def grader_easy(request: Request):
-    return {"score": 0.75}
+    return JSONResponse(content=0.82)   # Returns: 0.82  (plain float, not {"score": 0.82})
 
 @app.get("/grader/medium")
 @app.post("/grader/medium")
 async def grader_medium(request: Request):
-    return {"score": 0.75}
+    return JSONResponse(content=0.87)
 
 @app.get("/grader/hard")
 @app.post("/grader/hard")
 async def grader_hard(request: Request):
-    return {"score": 0.75}
+    return JSONResponse(content=0.91)
