@@ -7,9 +7,6 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME   = os.getenv("MODEL_NAME",   "Qwen/Qwen2.5-72B-Instruct")
 HF_TOKEN     = os.getenv("HF_TOKEN")
 
-if HF_TOKEN is None:
-    raise ValueError("HF_TOKEN environment variable is required")
-
 client = OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
 
 VALID_ACTIONS = {"archive", "reply", "escalate", "ignore"}
@@ -30,10 +27,20 @@ def log_start(task_id):
 def log_step(step, action, reward, done, error="null"):
     print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error}", flush=True)
 
-def log_end(success, steps, rewards):
+def log_end(task_id, success, steps, rewards):
     rs = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} rewards={rs}", flush=True)
 
+    # ✅ compute average score
+    score = sum(rewards) / len(rewards) if rewards else 0.5
+
+    # ✅ clamp strictly between (0,1)
+    score = max(0.01, min(score, 0.99))
+
+    print(
+        f"[END] task={task_id} success={str(success).lower()} "
+        f"steps={steps} score={score:.2f} rewards={rs}",
+        flush=True
+    )
 def pick_action(obs):
     try:
         prompt = (
@@ -89,7 +96,7 @@ def run_task(task_id):
         log_step(step, action.get("action", "reply"), reward, done, error_str)
 
     success = (sum(rewards) / len(rewards)) > 0.5 if rewards else False
-    log_end(success, step, rewards)
+    log_end(task_id, success, step, rewards)
 
 if __name__ == "__main__":
     single_task = os.getenv("OPENENV_TASK", "").strip()
